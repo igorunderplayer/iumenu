@@ -179,9 +179,16 @@ fn main() {
 }
 
 fn run_command(command: &String) {
-    std::process::Command::new(command)
-        .spawn()
-        .expect("Command failed to start");
+    let mut parts: Vec<&str> = command.split_whitespace().collect();
+
+    if let Some(cmd) = parts.clone().get(0) {
+        parts.remove(0);
+
+        let _ = std::process::Command::new(cmd)
+            .args(parts)
+            .spawn()
+            .expect("Command failed to start");
+    }
 }
 
 fn get_desktop_apps() -> Vec<DesktopApp> {
