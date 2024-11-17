@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 cairo = "0.0.4"
+gdk = "0.18.0"
 gio = "0.20.6"
 gtk = "0.18.1"
 rust-ini = "0.21.1"

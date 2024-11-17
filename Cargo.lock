@@ -946,6 +946,7 @@ name = "testdmenu"
 version = "0.1.0"
 dependencies = [
  "cairo",
+ "gdk",
  "gio 0.20.6",
  "gtk",
  "rust-ini",

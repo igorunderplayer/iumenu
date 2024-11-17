@@ -2,24 +2,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::{fs, process};
 
+use gdk::glib::Propagation;
+use gdk::keys;
 use gtk::gdk_pixbuf::Pixbuf;
-use gtk::{
-    prelude::*, Entry, Grid, Image, Label, ListBox, ListBoxRow, ScrolledWindow, SearchEntry,
-};
+use gtk::{prelude::*, Grid, Image, Label, ListBox, ListBoxRow, ScrolledWindow, SearchEntry};
 use gtk::{Window, WindowType};
 use ini::Ini;
-
-pub struct App {
-    pub id: u32,
-    pub name: String,
-    pub command: String,
-}
-
-impl App {
-    pub fn new(id: u32, name: String, command: String) -> Self {
-        Self { id, name, command }
-    }
-}
 
 #[derive(Clone)]
 struct DesktopApp {
@@ -57,14 +45,20 @@ impl DesktopApp {
 fn main() {
     gtk::init().expect("Failed to initialize GTK.");
 
+    let window_width = 800;
+    let window_height = 400;
+
     let sys_apps = get_desktop_apps();
 
-    let window = Window::new(WindowType::Popup);
+    let window = Window::new(WindowType::Toplevel);
 
     window.set_title("Menu");
-    window.set_default_size(800, 400);
+    window.set_default_size(window_width, window_height);
     window.set_decorated(false);
     window.set_resizable(false);
+    window.set_position(gtk::WindowPosition::CenterAlways);
+    window.set_window_position(gtk::WindowPosition::CenterAlways);
+    window.set_keep_above(true);
 
     let search_entry = SearchEntry::new();
     search_entry.set_vexpand(false);
@@ -116,6 +110,8 @@ fn main() {
         })
         .collect();
 
+    list_box.select_row(Some(&rows[0]));
+
     list_box.connect_row_activated({
         let data_map = data_map.clone();
         move |list_box, row| {
@@ -128,16 +124,14 @@ fn main() {
 
             let app_data = data_map.get(&id).unwrap();
 
-            println!("name: {}", app_data.name);
-            println!("exec: {}", app_data.exec);
-
-            run_command(&app_data.exec);
+            click_app(&app_data);
         }
     });
 
     search_entry.connect_search_changed({
         let data_map = data_map.clone();
         let rows = rows.clone();
+        let list_box = list_box.clone();
         move |entry| {
             let query = entry.text().to_lowercase();
 
@@ -159,6 +153,64 @@ fn main() {
                         }
                     }
                 }
+            }
+            list_box.select_row(rows.iter().find(|p| p.is_visible()));
+        }
+    });
+
+    search_entry.connect_key_press_event({
+        let list_clone = list_box.clone();
+        move |entry, event| {
+            let key = event.keyval();
+            let visible_rows: Vec<ListBoxRow> = list_clone
+                .children()
+                .into_iter()
+                .filter_map(|widget| widget.downcast::<ListBoxRow>().ok())
+                .filter(|p| p.is_visible())
+                .collect();
+
+            let current_index = visible_rows
+                .iter()
+                .position(|row| list_clone.selected_row() == Some(row.clone()));
+
+            match key {
+                keys::constants::Return => {
+                    if let Some(index) = current_index {
+                        if let Some(row) = list_clone.selected_row() {
+                            println!("escolheu algo");
+                            let mut id = String::from("");
+
+                            unsafe {
+                                id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
+                            }
+
+                            let app_data = data_map.get(&id).unwrap();
+                            click_app(&app_data);
+                        }
+                    }
+                    Propagation::Stop
+                }
+                gdk::keys::constants::Down => {
+                    if let Some(index) = current_index {
+                        if index + 1 < visible_rows.len() {
+                            list_clone.select_row(Some(&visible_rows[index + 1]));
+                        }
+                    } else if !visible_rows.is_empty() {
+                        list_clone.select_row(Some(&visible_rows[0]));
+                    }
+                    Propagation::Stop
+                }
+                gdk::keys::constants::Up => {
+                    if let Some(index) = current_index {
+                        if index > 0 {
+                            list_clone.select_row(Some(&visible_rows[index - 1]));
+                        }
+                    } else if !visible_rows.is_empty() {
+                        list_clone.select_row(Some(&visible_rows[0]));
+                    }
+                    Propagation::Stop
+                }
+                _ => Propagation::Proceed,
             }
         }
     });
@@ -189,6 +241,13 @@ fn run_command(command: &String) {
             .spawn()
             .expect("Command failed to start");
     }
+}
+
+fn click_app(app: &DesktopApp) {
+    println!("name: {}", app.name);
+    println!("exec: {}", app.exec);
+
+    run_command(&app.exec);
 }
 
 fn get_desktop_apps() -> Vec<DesktopApp> {
