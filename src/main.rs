@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::{fs, process};
 
 use gdk::glib::Propagation;
@@ -96,10 +97,8 @@ fn main() {
 
     list_box.style_context().add_class("list-box");
 
-    let mut data_map: HashMap<String, DesktopApp> = HashMap::new();
-
     let rows: Vec<ListBoxRow> = sys_apps
-        .iter()
+        .values()
         .map(|app| {
             let row = gtk::ListBoxRow::new();
 
@@ -117,8 +116,6 @@ fn main() {
                 row.set_data("app-id", app.id.to_owned());
             }
 
-            data_map.insert(app.id.clone(), app.clone());
-
             row_box.add(&app_icon);
             row_box.add(&label);
             row.add(&row_box);
@@ -132,7 +129,7 @@ fn main() {
     list_box.select_row(Some(&rows[0]));
 
     list_box.connect_row_activated({
-        let data_map = data_map.clone();
+        let sys_apps = sys_apps.clone();
         move |_list_box, row| {
             println!("escolheu algo");
             let mut id = String::from("");
@@ -141,45 +138,41 @@ fn main() {
                 id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
             }
 
-            let app_data = data_map.get(&id).unwrap();
+            let app_data = sys_apps.get(&id).unwrap();
 
             click_app(app_data);
         }
     });
 
     search_entry.connect_search_changed({
-        let data_map = data_map.clone();
-        let rows = rows.clone();
         let list_box = list_box.clone();
+        let sys_apps = sys_apps.clone();
         move |entry| {
             let query = entry.text().to_lowercase();
 
-            for row in &rows {
-                if let Some(row_box) = row.child().and_then(|c| c.downcast::<gtk::Box>().ok()) {
-                    for child in row_box.children() {
-                        if let Some(label) = child.downcast_ref::<Label>() {
-                            let label_text = label.text().to_string();
-                            let mut keywords = String::from("");
-                            unsafe {
-                                let id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
-                                let app_data = data_map.get(&id).unwrap();
-                                keywords = app_data.keywords.clone();
-                            }
+            let results: HashSet<String> = sys_apps
+                .iter()
+                .filter(|(_, app_data)| {
+                    app_data.name.to_lowercase().contains(&query)
+                        || app_data.keywords.to_lowercase().contains(&query)
+                })
+                .map(|(id, _)| id.clone())
+                .collect();
 
-                            row.set_visible(
-                                label_text.to_lowercase().contains(&query)
-                                    || keywords.to_lowercase().contains(&query),
-                            );
-                        }
-                    }
+            for row in list_box.children() {
+                unsafe {
+                    let id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
+                    row.set_visible(results.contains(&id));
                 }
             }
+
             list_box.select_row(rows.iter().find(|p| p.is_visible()));
         }
     });
 
     search_entry.connect_key_press_event({
         let list_clone = list_box.clone();
+        let sys_apps = sys_apps.clone();
         move |_entry, event| {
             let key = event.keyval();
             let visible_rows: Vec<ListBoxRow> = list_clone
@@ -204,7 +197,7 @@ fn main() {
                                 id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
                             }
 
-                            let app_data = data_map.get(&id).unwrap();
+                            let app_data = sys_apps.get(&id).unwrap();
                             click_app(app_data);
                         }
                     }
@@ -270,8 +263,8 @@ fn click_app(app: &DesktopApp) {
     run_command(&app.exec);
 }
 
-fn get_desktop_apps() -> Vec<DesktopApp> {
-    let mut apps = Vec::new();
+fn get_desktop_apps() -> HashMap<String, DesktopApp> {
+    let mut apps = HashMap::new();
     let dir = Path::new("/usr/share/applications");
 
     if dir.exists() && dir.is_dir() {
@@ -281,13 +274,14 @@ fn get_desktop_apps() -> Vec<DesktopApp> {
                 if path.extension().map(|e| e == "desktop").unwrap_or(false) {
                     if let Some(app_name) = path.file_stem() {
                         let id = app_name.to_string_lossy().into_owned();
-                        let app_data = parse_desktop_file(path.to_str().unwrap(), id).unwrap();
+                        let app_data =
+                            parse_desktop_file(path.to_str().unwrap(), id.clone()).unwrap();
 
                         if app_data.app_type != "Application" {
                             continue;
                         }
 
-                        apps.push(app_data);
+                        apps.insert(id, app_data);
                     }
                 }
             }

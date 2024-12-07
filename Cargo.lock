@@ -679,6 +679,7 @@ dependencies = [
  "dirs",
  "gdk",
  "gio 0.20.6",
+ "glib 0.20.6",
  "gtk",
  "rust-ini",
  "serde",
