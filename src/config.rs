@@ -1,8 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use serde::Deserialize;
+
+use crate::util::expand_path;
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -18,7 +19,21 @@ pub struct WindowConfig {
 
 #[derive(Deserialize)]
 pub struct StyleConfig {
+    #[serde(deserialize_with = "deserialize_expanded_path")]
     pub path: Option<PathBuf>,
+}
+
+fn deserialize_expanded_path<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt_path: Option<String> = Option::deserialize(deserializer)?;
+    if let Some(path) = opt_path {
+        let expanded = expand_path(&path).map_err(serde::de::Error::custom)?;
+        Ok(Some(expanded))
+    } else {
+        Ok(None)
+    }
 }
 
 impl Default for Config {
@@ -43,10 +58,6 @@ impl Default for StyleConfig {
     fn default() -> StyleConfig {
         StyleConfig { path: None }
     }
-}
-
-pub fn get_default_path() -> PathBuf {
-    PathBuf::from_str(".config/iumenu/config.toml").unwrap()
 }
 
 pub fn load_from_file(path: &PathBuf) -> Config {

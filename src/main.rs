@@ -3,7 +3,7 @@ use std::env::args;
 use std::path::Path;
 use std::{fs, process};
 
-use config::{get_default_path, StyleConfig, WindowConfig};
+use config::{StyleConfig, WindowConfig};
 use gdk::glib::Propagation;
 use gdk::keys;
 use gtk::gdk_pixbuf::Pixbuf;
@@ -14,6 +14,7 @@ use ini::Ini;
 mod args;
 mod config;
 mod style;
+mod util;
 
 #[derive(Clone)]
 struct DesktopApp {
@@ -50,7 +51,7 @@ impl DesktopApp {
 
 fn main() {
     let args = args::parse_arguments();
-    let config = config::load_from_file(&args.config.unwrap_or(get_default_path()));
+    let config = config::load_from_file(&args.config);
     gtk::init().expect("Failed to initialize GTK.");
 
     let sys_apps = get_desktop_apps();
@@ -93,6 +94,8 @@ fn main() {
 
     list_box.set_expand(true);
 
+    list_box.style_context().add_class("list-box");
+
     let mut data_map: HashMap<String, DesktopApp> = HashMap::new();
 
     let rows: Vec<ListBoxRow> = sys_apps
@@ -101,6 +104,8 @@ fn main() {
             let row = gtk::ListBoxRow::new();
 
             let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+
+            row.style_context().add_class("entry");
 
             row.set_height_request(48);
 
