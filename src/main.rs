@@ -114,7 +114,7 @@ fn main() {
 
     list_box.connect_row_activated({
         let data_map = data_map.clone();
-        move |list_box, row| {
+        move |_list_box, row| {
             println!("escolheu algo");
             let mut id = String::from("");
 
@@ -124,7 +124,7 @@ fn main() {
 
             let app_data = data_map.get(&id).unwrap();
 
-            click_app(&app_data);
+            click_app(app_data);
         }
     });
 
@@ -144,7 +144,7 @@ fn main() {
                             unsafe {
                                 let id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
                                 let app_data = data_map.get(&id).unwrap();
-                                keywords = app_data.keywords.clone();
+                                let keywords = app_data.keywords.clone();
                             }
                             row.set_visible(
                                 label_text.to_lowercase().contains(&query)
@@ -160,7 +160,7 @@ fn main() {
 
     search_entry.connect_key_press_event({
         let list_clone = list_box.clone();
-        move |entry, event| {
+        move |_entry, event| {
             let key = event.keyval();
             let visible_rows: Vec<ListBoxRow> = list_clone
                 .children()
@@ -175,17 +175,17 @@ fn main() {
 
             match key {
                 keys::constants::Return => {
-                    if let Some(index) = current_index {
+                    if let Some(_index) = current_index {
                         if let Some(row) = list_clone.selected_row() {
                             println!("escolheu algo");
-                            let mut id = String::from("");
+                            let id;
 
                             unsafe {
                                 id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
                             }
 
                             let app_data = data_map.get(&id).unwrap();
-                            click_app(&app_data);
+                            click_app(app_data);
                         }
                     }
                     Propagation::Stop
@@ -256,20 +256,18 @@ fn get_desktop_apps() -> Vec<DesktopApp> {
 
     if dir.exists() && dir.is_dir() {
         if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.extension().map(|e| e == "desktop").unwrap_or(false) {
-                        if let Some(app_name) = path.file_stem() {
-                            let id = app_name.to_string_lossy().into_owned();
-                            let app_data = parse_desktop_file(&path.to_str().unwrap(), id).unwrap();
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "desktop").unwrap_or(false) {
+                    if let Some(app_name) = path.file_stem() {
+                        let id = app_name.to_string_lossy().into_owned();
+                        let app_data = parse_desktop_file(path.to_str().unwrap(), id).unwrap();
 
-                            if app_data.app_type != "Application" {
-                                continue;
-                            }
-
-                            apps.push(app_data);
+                        if app_data.app_type != "Application" {
+                            continue;
                         }
+
+                        apps.push(app_data);
                     }
                 }
             }
@@ -324,8 +322,7 @@ fn load_icon(icon_name: &str) -> Option<Pixbuf> {
 
 fn display_app_icon(icon_name: &str) -> gtk::Image {
     if let Some(pixbuf) = load_icon(icon_name) {
-        let image = Image::from_pixbuf(Some(&pixbuf));
-        image
+        Image::from_pixbuf(Some(&pixbuf))
     } else {
         Image::new()
     }
