@@ -3,7 +3,7 @@ use std::env::args;
 use std::path::Path;
 use std::{fs, process};
 
-use config::get_default_path;
+use config::{get_default_path, StyleConfig, WindowConfig};
 use gdk::glib::Propagation;
 use gdk::keys;
 use gtk::gdk_pixbuf::Pixbuf;
@@ -13,6 +13,7 @@ use ini::Ini;
 
 mod args;
 mod config;
+mod style;
 
 #[derive(Clone)]
 struct DesktopApp {
@@ -55,19 +56,28 @@ fn main() {
     let sys_apps = get_desktop_apps();
 
     let window = Window::new(WindowType::Toplevel);
+    let window_config = config.window.unwrap_or(config::WindowConfig::default());
 
     window.set_title("Menu");
-    window.set_default_size(config.window.width, config.window.height);
+    window.set_default_size(window_config.width, window_config.height);
     window.set_decorated(false);
     window.set_resizable(false);
     window.set_position(gtk::WindowPosition::CenterAlways);
     window.set_window_position(gtk::WindowPosition::CenterAlways);
     window.set_keep_above(true);
 
+    let style_config = config.style.unwrap_or(config::StyleConfig::default());
+
+    if let Some(path) = style_config.path {
+        style::apply_custom_css(&path.to_str().unwrap());
+    }
+
     let search_entry = SearchEntry::new();
     search_entry.set_vexpand(false);
     search_entry.set_hexpand(true);
     search_entry.set_height_request(72);
+
+    search_entry.style_context().add_class("search-entry");
 
     let main_grid = Grid::new();
 

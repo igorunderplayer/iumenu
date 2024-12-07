@@ -1,3 +1,7 @@
 window {
   background-color: #fff;
 }
+
+.search-entry {
+  background-color: red;
+}

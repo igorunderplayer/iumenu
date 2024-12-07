@@ -6,7 +6,8 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct Config {
-    pub window: WindowConfig,
+    pub window: Option<WindowConfig>,
+    pub style: Option<StyleConfig>,
 }
 
 #[derive(Deserialize)]
@@ -15,10 +16,16 @@ pub struct WindowConfig {
     pub height: i32,
 }
 
+#[derive(Deserialize)]
+pub struct StyleConfig {
+    pub path: Option<PathBuf>,
+}
+
 impl Default for Config {
     fn default() -> Config {
         Config {
-            window: WindowConfig::default(),
+            window: Some(WindowConfig::default()),
+            style: Some(StyleConfig::default()),
         }
     }
 }
@@ -29,6 +36,12 @@ impl Default for WindowConfig {
             width: 800,
             height: 400,
         }
+    }
+}
+
+impl Default for StyleConfig {
+    fn default() -> StyleConfig {
+        StyleConfig { path: None }
     }
 }
 
