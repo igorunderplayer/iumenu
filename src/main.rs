@@ -161,8 +161,9 @@ fn main() {
                             unsafe {
                                 let id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
                                 let app_data = data_map.get(&id).unwrap();
-                                let keywords = app_data.keywords.clone();
+                                keywords = app_data.keywords.clone();
                             }
+
                             row.set_visible(
                                 label_text.to_lowercase().contains(&query)
                                     || keywords.to_lowercase().contains(&query),
