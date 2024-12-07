@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+serde = { version = "1.0.215", features = ["derive"] }
 cairo = "0.0.4"
+clap = { version = "4.5.23", features = ["derive"] }
 gdk = "0.18.0"
 gio = "0.20.6"
 gtk = "0.18.1"
 rust-ini = "0.21.1"
+serde_derive = "1.0.215"
+toml = "0.8.19"

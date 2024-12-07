@@ -1,13 +1,18 @@
 use std::collections::HashMap;
+use std::env::args;
 use std::path::Path;
 use std::{fs, process};
 
+use config::get_default_path;
 use gdk::glib::Propagation;
 use gdk::keys;
 use gtk::gdk_pixbuf::Pixbuf;
 use gtk::{prelude::*, Grid, Image, Label, ListBox, ListBoxRow, ScrolledWindow, SearchEntry};
 use gtk::{Window, WindowType};
 use ini::Ini;
+
+mod args;
+mod config;
 
 #[derive(Clone)]
 struct DesktopApp {
@@ -43,17 +48,16 @@ impl DesktopApp {
 }
 
 fn main() {
+    let args = args::parse_arguments();
+    let config = config::load_from_file(&args.config.unwrap_or(get_default_path()));
     gtk::init().expect("Failed to initialize GTK.");
-
-    let window_width = 800;
-    let window_height = 400;
 
     let sys_apps = get_desktop_apps();
 
     let window = Window::new(WindowType::Toplevel);
 
     window.set_title("Menu");
-    window.set_default_size(window_width, window_height);
+    window.set_default_size(config.window.width, config.window.height);
     window.set_decorated(false);
     window.set_resizable(false);
     window.set_position(gtk::WindowPosition::CenterAlways);
