@@ -67,6 +67,8 @@ fn main() {
 
     let style_config = config.style.unwrap_or(config::StyleConfig::default());
 
+    window.set_opacity(style_config.opacity.unwrap_or(1.0));
+
     if let Some(path) = style_config.path {
         style::apply_custom_css(&path.to_str().unwrap());
     }

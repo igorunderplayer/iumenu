@@ -21,6 +21,7 @@ pub struct WindowConfig {
 pub struct StyleConfig {
     #[serde(deserialize_with = "deserialize_expanded_path")]
     pub path: Option<PathBuf>,
+    pub opacity: Option<f64>,
 }
 
 fn deserialize_expanded_path<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
@@ -56,7 +57,10 @@ impl Default for WindowConfig {
 
 impl Default for StyleConfig {
     fn default() -> StyleConfig {
-        StyleConfig { path: None }
+        StyleConfig {
+            path: None,
+            opacity: Some(1.0),
+        }
     }
 }
 
