@@ -1,9 +1,7 @@
 use std::collections::HashMap;
-use std::env::args;
 use std::path::Path;
 use std::{fs, process};
 
-use config::{StyleConfig, WindowConfig};
 use gdk::glib::Propagation;
 use gdk::keys;
 use gtk::gdk_pixbuf::Pixbuf;

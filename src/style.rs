@@ -1,8 +1,4 @@
-use gdk::{pango::Style, Display};
-use gtk::{
-    prelude::{CssProviderExt, StyleContextExt},
-    CssProvider, StyleContext,
-};
+use gtk::{prelude::CssProviderExt, CssProvider, StyleContext};
 
 pub fn apply_custom_css(path: &str) {
     let provider = CssProvider::new();
