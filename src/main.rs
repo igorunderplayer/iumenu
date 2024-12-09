@@ -1,6 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
 use std::{fs, process};
 
 use gdk::glib::Propagation;
@@ -10,6 +9,7 @@ use gtk::{prelude::*, Grid, Image, Label, ListBox, ListBoxRow, ScrolledWindow, S
 use gtk::{Window, WindowType};
 use ini::Ini;
 
+mod app;
 mod args;
 mod config;
 mod style;
@@ -48,7 +48,9 @@ impl DesktopApp {
     }
 }
 
-fn main() {
+fn main() -> iced::Result {
+    return app::run();
+
     let args = args::parse_arguments();
     let config = config::load_from_file(&args.config);
     gtk::init().expect("Failed to initialize GTK.");
@@ -58,7 +60,7 @@ fn main() {
     let window = Window::new(WindowType::Toplevel);
     let window_config = config.window.unwrap_or(config::WindowConfig::default());
 
-    window.set_title("Menu");
+    window.set_title("IUMenu");
     window.set_default_size(window_config.width, window_config.height);
     window.set_decorated(false);
     window.set_resizable(false);
@@ -150,21 +152,31 @@ fn main() {
         move |entry| {
             let query = entry.text().to_lowercase();
 
-            let results: HashSet<String> = sys_apps
-                .iter()
-                .filter(|(_, app_data)| {
-                    app_data.name.to_lowercase().contains(&query)
-                        || app_data.keywords.to_lowercase().contains(&query)
-                })
-                .map(|(id, _)| id.clone())
-                .collect();
+            glib::source::timeout_add_local(std::time::Duration::from_millis(10), {
+                let list_box = list_box.clone();
+                let sys_apps = sys_apps.clone();
 
-            for row in list_box.children() {
-                unsafe {
-                    let id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
-                    row.set_visible(results.contains(&id));
+                println!("search mudou: {}", query);
+
+                move || {
+                    for row in list_box.children() {
+                        let mut id = String::from("");
+
+                        unsafe {
+                            id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
+                        }
+
+                        if let Some(app) = sys_apps.get(&id) {
+                            row.set_visible(
+                                app.name.to_lowercase().contains(&query)
+                                    || app.keywords.to_lowercase().contains(&query),
+                            );
+                        }
+                    }
+
+                    glib::ControlFlow::Break
                 }
-            }
+            });
 
             list_box.select_row(rows.iter().find(|p| p.is_visible()));
         }
@@ -256,7 +268,7 @@ fn run_command(command: &String) {
     }
 }
 
-fn click_app(app: &DesktopApp) {
+pub fn click_app(app: &DesktopApp) {
     println!("name: {}", app.name);
     println!("exec: {}", app.exec);
 
