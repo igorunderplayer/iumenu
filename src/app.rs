@@ -3,11 +3,16 @@ use std::collections::HashMap;
 use iced::{
     event,
     keyboard::{key::Named, Key},
-    widget::{button, column, scrollable, text, text_input, Button, Column, Scrollable, Text},
+    widget::{
+        button, column, container, scrollable, text, text_input, Button, Column, Scrollable, Text,
+    },
     Application, Element, Event, Length, Subscription, Task, Theme,
 };
 
-use crate::{click_app, get_desktop_apps, DesktopApp};
+use crate::{
+    click_app,
+    freedesktop::desktop_entry::{get_available_apps, DesktopApp},
+};
 
 struct Entry {
     visible: bool,
@@ -20,7 +25,6 @@ struct IUMenu {
     entries: Vec<Entry>,
     apps: HashMap<String, DesktopApp>,
     selected_index: usize,
-    selected_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -33,22 +37,28 @@ pub enum Message {
 
 impl IUMenu {
     pub fn new() -> (Self, Task<Message>) {
-        let apps = get_desktop_apps();
-        let entries: Vec<Entry> = apps
-            .keys()
-            .cloned()
-            .map(|k| Entry {
+        let apps = get_available_apps();
+
+        let mut entries: Vec<Entry> = apps
+            .iter()
+            .map(|(id, _)| Entry {
                 visible: true,
-                id: k,
+                id: id.clone(),
             })
             .collect();
+
+        entries.sort_by(|a, b| {
+            let app_a = &apps[&a.id];
+            let app_b = &apps[&b.id];
+            app_a.name.to_lowercase().cmp(&app_b.name.to_lowercase())
+        });
+
         (
             Self {
                 search_content: String::default(),
                 entries,
                 apps,
                 selected_index: 0,
-                selected_id: String::default(),
             },
             Task::none(),
         )
@@ -60,15 +70,18 @@ impl IUMenu {
             .iter()
             .filter(|entry| entry.visible)
             .enumerate()
-            .fold(Column::new(), |col, (index, entry)| {
+            .fold(Column::new().padding(8), |col, (index, entry)| {
                 let app = self.apps.get(&entry.id).unwrap();
                 col.push(
                     Button::new(Text::new(app.name.clone()))
                         .on_press(Message::ButtonClicked(entry.id.to_owned()))
                         .width(Length::Fill)
+                        .padding(8)
                         .style(move |theme, status| {
                             if self.selected_index == index {
-                                button::primary(theme, status)
+                                let mut style = button::primary(theme, status).clone();
+                                style.border = iced::Border::default().rounded(8);
+                                style
                             } else {
                                 button::text(theme, status)
                             }
@@ -78,12 +91,20 @@ impl IUMenu {
 
         let scroll = scrollable(column).width(Length::Fill);
 
-        return column![
-            text_input("Pesquisa ai duvido", &self.search_content)
-                .on_input(Message::SearchChanged)
-                .on_submit(Message::OnSubmit),
-            scroll
-        ];
+        let input = text_input("Pesquisa ai duvido", &self.search_content)
+            .padding(16)
+            .style(|theme, status| {
+                let mut style = text_input::default(theme, status);
+                style.border = iced::Border::default()
+                    .rounded(8)
+                    .color(theme.palette().primary)
+                    .width(1);
+                style
+            })
+            .on_input(Message::SearchChanged)
+            .on_submit(Message::OnSubmit);
+
+        column![input, scroll].padding(8)
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -154,11 +175,9 @@ impl IUMenu {
     fn handle_input(&mut self, key_code: Key) -> Task<Message> {
         match key_code {
             Key::Named(Named::ArrowUp) => {
-                println!("Selected line : {:?}", self.selected_index);
                 return self.dec_selected();
             }
             Key::Named(Named::ArrowDown) => {
-                println!("Selected line : {:?}", self.selected_index);
                 return self.inc_selected();
             }
             Key::Named(Named::Enter) => return self.on_execute(),
@@ -172,12 +191,16 @@ impl IUMenu {
     }
 
     fn inc_selected(&mut self) -> Task<Message> {
-        self.selected_index += 1;
+        if self.selected_index + 1 < self.entries.iter().filter(|e| e.visible).count() {
+            self.selected_index += 1;
+        }
         Task::none()
     }
 
     fn dec_selected(&mut self) -> Task<Message> {
-        self.selected_index -= 1;
+        if self.selected_index > 0 {
+            self.selected_index -= 1;
+        }
         Task::none()
     }
 }
@@ -193,6 +216,14 @@ pub fn run() -> iced::Result {
         decorations: false,
         resizable: false,
         position: iced::window::Position::Centered,
+        level: iced::window::Level::AlwaysOnTop,
+        transparent: true,
+        min_size: None,
+        max_size: None,
+        ..Default::default()
+    })
+    .settings(iced::Settings {
+        id: Some("com.igorunderplayer.iumenu".to_owned()),
         ..Default::default()
     })
     .theme(IUMenu::theme)
