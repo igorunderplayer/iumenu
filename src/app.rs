@@ -3,14 +3,12 @@ use std::collections::HashMap;
 use iced::{
     event,
     keyboard::{key::Named, Key},
-    widget::{
-        button, column, container, scrollable, text, text_input, Button, Column, Scrollable, Text,
-    },
-    Application, Element, Event, Length, Subscription, Task, Theme,
+    widget::{button, column, scrollable, text, text_input, Column},
+    Event, Length, Subscription, Task, Theme,
 };
 
 use crate::{
-    click_app,
+    action::click_app,
     freedesktop::desktop_entry::{get_available_apps, DesktopApp},
 };
 
@@ -73,19 +71,22 @@ impl IUMenu {
             .fold(Column::new().padding(8), |col, (index, entry)| {
                 let app = self.apps.get(&entry.id).unwrap();
                 col.push(
-                    Button::new(Text::new(app.name.clone()))
-                        .on_press(Message::ButtonClicked(entry.id.to_owned()))
-                        .width(Length::Fill)
-                        .padding(8)
-                        .style(move |theme, status| {
-                            if self.selected_index == index {
-                                let mut style = button::primary(theme, status).clone();
-                                style.border = iced::Border::default().rounded(8);
-                                style
-                            } else {
-                                button::text(theme, status)
-                            }
-                        }),
+                    button(column![
+                        text(app.name.clone()),
+                        text(app.comment.clone()).style(|theme| text::secondary(theme))
+                    ])
+                    .on_press(Message::ButtonClicked(entry.id.to_owned()))
+                    .width(Length::Fill)
+                    .padding(8)
+                    .style(move |theme, status| {
+                        if self.selected_index == index {
+                            let mut style = button::primary(theme, status).clone();
+                            style.border = iced::Border::default().rounded(8);
+                            style
+                        } else {
+                            button::text(theme, status)
+                        }
+                    }),
                 )
             });
 

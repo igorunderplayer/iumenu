@@ -10,6 +10,7 @@ use ini::Ini;
 pub struct DesktopApp {
     pub id: String,
     pub name: String,
+    pub comment: String,
     pub exec: String,
     pub keywords: String, // TODO: Implement this as list of string
     pub app_type: String,
@@ -23,6 +24,7 @@ impl DesktopApp {
     pub fn new(
         id: String,
         name: String,
+        comment: String,
         exec: String,
         keywords: String,
         app_type: String,
@@ -34,6 +36,7 @@ impl DesktopApp {
         Self {
             id,
             name,
+            comment,
             exec,
             keywords,
             app_type,
@@ -74,6 +77,11 @@ pub fn get_user_apps() -> HashMap<String, DesktopApp> {
 pub fn read_desktop_files(path: &PathBuf) -> HashMap<String, DesktopApp> {
     let mut apps = HashMap::new();
     let dir = Path::new(&path);
+    let current_desktop = if let Ok(desktop) = std::env::var("XDG_CURRENT_DESKTOP") {
+        Some(desktop)
+    } else {
+        None
+    };
 
     if dir.exists() && dir.is_dir() {
         if let Ok(entries) = fs::read_dir(dir) {
@@ -85,10 +93,7 @@ pub fn read_desktop_files(path: &PathBuf) -> HashMap<String, DesktopApp> {
                         let app_data =
                             parse_desktop_file(path.to_str().unwrap(), id.clone()).unwrap();
 
-                        if app_data.app_type != "Application"
-                            || app_data.no_display
-                            || !should_show(&app_data.only_show_in)
-                        {
+                        if should_show(&app_data, &current_desktop) {
                             continue;
                         }
 
@@ -101,7 +106,13 @@ pub fn read_desktop_files(path: &PathBuf) -> HashMap<String, DesktopApp> {
     apps
 }
 
-fn should_show(show_in: &String) -> bool {
+fn should_show(app_data: &DesktopApp, current_desktop: &Option<String>) -> bool {
+    app_data.app_type != "Application"
+        || app_data.no_display
+        || !is_in_show_in(&app_data.only_show_in, current_desktop)
+}
+
+fn is_in_show_in(show_in: &String, current_desktop: &Option<String>) -> bool {
     let only_show_in: Vec<&str> = show_in.split(';').filter(|s| !s.is_empty()).collect();
 
     println!("OnlyShowIn: {:?}", only_show_in);
@@ -110,13 +121,10 @@ fn should_show(show_in: &String) -> bool {
         return true;
     }
 
-    if let Ok(current_desktop) = std::env::var("XDG_CURRENT_DESKTOP") {
-        println!("Current Desktop Environment: {}", current_desktop);
-
+    if let Some(current_desktop) = current_desktop {
         return only_show_in.contains(&current_desktop.as_str());
     }
 
-    println!("XDG_CURRENT_DESKTOP not set. Defaulting to true.");
     true
 }
 
@@ -126,6 +134,7 @@ pub fn parse_desktop_file(path: &str, id: String) -> Option<DesktopApp> {
 
     if let Some(section) = ini.section(Some("Desktop Entry")) {
         let name = section.get("Name").unwrap_or("Unknown").to_string();
+        let comment = section.get("Comment").unwrap_or("").to_string();
         let icon = section.get("Icon").unwrap_or("").to_string();
         let app_type = section.get("Type").unwrap_or("").to_string();
         let categories = section.get("Categories").unwrap_or("Unknown").to_string();
@@ -140,6 +149,7 @@ pub fn parse_desktop_file(path: &str, id: String) -> Option<DesktopApp> {
         return Some(DesktopApp::new(
             id,
             name,
+            comment,
             exec,
             keywords,
             app_type,
