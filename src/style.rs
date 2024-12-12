@@ -1,17 +1,14 @@
-use gtk::{prelude::CssProviderExt, CssProvider, StyleContext};
+use gtk::CssProvider;
 
 pub fn apply_custom_css(path: &str) {
     let provider = CssProvider::new();
 
-    if !provider.load_from_path(path).is_err() {
-        if let Some(screen) = gdk::Screen::default() {
-            StyleContext::add_provider_for_screen(
-                &screen,
-                &provider,
-                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-            );
-        }
-    } else {
-        eprintln!("Could not load css file: {}", path);
+    provider.load_from_path(path);
+    if let Some(display) = gtk::gdk::Display::default() {
+        gtk::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
     }
 }
