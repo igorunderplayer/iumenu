@@ -32,7 +32,6 @@ fn main() {
     let app = gtk::Application::builder().application_id(APP_ID).build();
 
     app.connect_activate(move |app| {
-        println!("alo?");
         let config = config::load_from_file(&args.config);
 
         let window = gtk::ApplicationWindow::new(app);
@@ -108,6 +107,7 @@ fn main() {
 
         let mut last_active: String = String::default();
         list_box.connect_row_activated({
+            let app = app.clone();
             let sys_apps = sys_apps.clone();
             let last_active = std::sync::Arc::new(std::sync::Mutex::new(last_active));
             move |_list_box, row| {
@@ -123,6 +123,7 @@ fn main() {
                 if *last_active == id {
                     let app_data = sys_apps.get(&id).unwrap();
                     click_app(app_data);
+                    app.quit();
                 }
 
                 *last_active = id.clone();
@@ -194,6 +195,7 @@ fn main() {
 
                             let app_data = sys_apps.get(&id).unwrap();
                             click_app(app_data);
+                            app.quit();
                         }
                         gtk::glib::Propagation::Stop
                     }
