@@ -1,4 +1,7 @@
-use std::process;
+use std::{
+    process,
+    sync::{Arc, Mutex},
+};
 
 use action::click_app;
 use freedesktop::desktop_entry::get_available_apps;
@@ -103,8 +106,10 @@ fn main() {
 
         list_box.select_row(Some(&rows[0]));
 
+        let mut last_active: String = String::default();
         list_box.connect_row_activated({
             let sys_apps = sys_apps.clone();
+            let last_active = std::sync::Arc::new(std::sync::Mutex::new(last_active));
             move |_list_box, row| {
                 println!("escolheu algo");
                 let mut id = String::from("");
@@ -113,9 +118,14 @@ fn main() {
                     id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
                 }
 
-                let app_data = sys_apps.get(&id).unwrap();
+                let mut last_active = last_active.lock().unwrap();
 
-                click_app(app_data);
+                if *last_active == id {
+                    let app_data = sys_apps.get(&id).unwrap();
+                    click_app(app_data);
+                }
+
+                *last_active = id.clone();
             }
         });
 
@@ -145,11 +155,15 @@ fn main() {
         });
 
         let controller = gtk::EventControllerKey::new();
+
+        controller.set_propagation_phase(gtk::PropagationPhase::Capture);
+
         controller.connect_key_pressed({
             let sys_apps = sys_apps.clone();
             let list_box = list_box.clone();
             let rows = rows.clone();
             let app = app.clone();
+            let search_entry = search_entry.clone();
             move |_, keyval, keycode, _state| {
                 println!("Key pressed: {:?}, Keycode: {:?}", keyval, keycode);
                 let visible_rows: Vec<ListBoxRow> = rows
@@ -169,18 +183,17 @@ fn main() {
                         gtk::glib::Propagation::Proceed
                     }
                     gtk::gdk::Key::Return => {
-                        if let Some(_index) = current_index {
-                            if let Some(row) = list_box.selected_row() {
-                                println!("escolheu algo");
-                                let id;
+                        println!("enter");
+                        if let Some(row) = list_box.selected_row() {
+                            println!("escolheu algo");
+                            let id;
 
-                                unsafe {
-                                    id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
-                                }
-
-                                let app_data = sys_apps.get(&id).unwrap();
-                                click_app(app_data);
+                            unsafe {
+                                id = row.data::<String>("app-id").unwrap().as_ref().to_owned();
                             }
+
+                            let app_data = sys_apps.get(&id).unwrap();
+                            click_app(app_data);
                         }
                         gtk::glib::Propagation::Stop
                     }
@@ -188,21 +201,32 @@ fn main() {
                         println!("key press down");
                         if let Some(index) = current_index {
                             if index + 1 < visible_rows.len() {
-                                list_box.select_row(Some(&visible_rows[index + 1]));
+                                let next_row = &visible_rows[index + 1];
+                                list_box.select_row(Some(next_row));
+                                next_row.activate();
+                                search_entry.grab_focus();
                             }
                         } else if !visible_rows.is_empty() {
-                            list_box.select_row(Some(&visible_rows[0]));
+                            let next_row = &visible_rows[0];
+                            list_box.select_row(Some(next_row));
+                            next_row.activate();
+                            search_entry.grab_focus();
                         }
                         gtk::glib::Propagation::Stop
                     }
                     gtk::gdk::Key::Up => {
                         if let Some(index) = current_index {
                             if index > 0 {
-                                list_box.select_row(Some(&visible_rows[index - 1]));
-                                list_box.select_row(Some(&visible_rows[index - 1]));
+                                let next_row = &visible_rows[index - 1];
+                                list_box.select_row(Some(next_row));
+                                next_row.activate();
+                                search_entry.grab_focus();
                             }
                         } else if !visible_rows.is_empty() {
-                            list_box.select_row(Some(&visible_rows[0]));
+                            let next_row = &visible_rows[0];
+                            list_box.select_row(Some(next_row));
+                            next_row.activate();
+                            search_entry.grab_focus();
                         }
                         gtk::glib::Propagation::Stop
                     }
