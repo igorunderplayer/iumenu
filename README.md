@@ -5,9 +5,6 @@ A simple to use, (multiplatform?), GTK based and writen in Rust app launcher and
 
 ## Building
 
-> [!IMPORTANT]  
-> The project is incomplete, including this building section.
-
 
 ### Build and install using Cargo:
 ```sh

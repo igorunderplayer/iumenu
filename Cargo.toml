@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cairo = "0.0.4"
-gdk = "0.18.0"
-gio = "0.20.6"
-gtk = "0.18.1"
+serde = { version = "1.0.215", features = ["derive"] }
+clap = { version = "4.5.23", features = ["derive"] }
 rust-ini = "0.21.1"
+toml = "0.8.19"
+dirs = "5.0.1"
+shellexpand = "3.1.0"
+gtk = { version = "0.9.4", package = "gtk4", features = ["v4_16"] }
