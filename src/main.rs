@@ -41,6 +41,8 @@ fn main() {
         window.set_default_size(window_config.width, window_config.height);
         window.set_decorated(false);
         window.set_resizable(false);
+        window.set_size_request(window_config.width, window_config.height);
+        window.set_modal(true);
 
         let style_config = config.style.unwrap_or(config::StyleConfig::default());
 
