@@ -1,4 +1,6 @@
 use std::{
+    collections::HashMap,
+    hash::Hash,
     process,
     sync::{Arc, Mutex},
 };
@@ -15,13 +17,71 @@ mod freedesktop;
 mod style;
 mod util;
 
+#[cfg(target_os = "windows")]
+mod windows;
+
 const APP_ID: &str = "com.igorunderplayer.IUMenu";
+
+#[derive(Clone)]
+struct AppEntry {
+    id: String,
+    name: String,
+    exec: String,
+    icon: String,
+    keywords: String,
+}
+
+impl AppEntry {
+    pub fn new(
+        id: String,
+        name: String,
+        exec: String,
+        icon: Option<String>,
+        keywords: Option<String>,
+    ) -> AppEntry {
+        AppEntry {
+            id,
+            name,
+            exec,
+            icon: icon.unwrap_or("".to_string()),
+            keywords: keywords.unwrap_or("".to_string()),
+        }
+    }
+
+    pub fn from_freedesktop(app: &freedesktop::desktop_entry::DesktopApp) -> AppEntry {
+        AppEntry {
+            id: app.id.clone(),
+            name: app.name.clone(),
+            exec: app.exec.clone(),
+            icon: app.icon.clone(),
+            keywords: app.keywords.clone(),
+        }
+    }
+}
+
+fn get_apps() -> HashMap<String, AppEntry> {
+    #[cfg(target_os = "windows")]
+    {
+        windows::get_installed_apps()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let apps = HashMap::new();
+        freedesktop::desktop_entry::get_available_apps()
+            .iter()
+            .for_each(|entry| {
+                apps.insert(entry.0, AppEntry::from_freedesktop(entry.1));
+            });
+        apps
+    }
+}
 
 fn main() {
     gtk::init().expect("Failed to initialize GTK.");
     let args = args::parse_arguments();
 
-    let sys_apps = get_available_apps();
+    let sys_apps = get_apps();
     let mut entries: Vec<String> = sys_apps.iter().map(|(id, _)| id.clone()).collect();
     entries.sort_by(|a, b| {
         let app_a = &sys_apps[a];
@@ -96,6 +156,7 @@ fn main() {
                 }
 
                 row_box.append(&icon);
+
                 row_box.append(&label);
                 row.set_child(Some(&row_box));
 
@@ -111,7 +172,8 @@ fn main() {
         list_box.connect_row_activated({
             let app = app.clone();
             let sys_apps = sys_apps.clone();
-            let last_active = std::sync::Arc::new(std::sync::Mutex::new(last_active));
+            let last_active: Arc<Mutex<String>> =
+                std::sync::Arc::new(std::sync::Mutex::new(last_active));
             move |_list_box, row| {
                 println!("escolheu algo");
                 let mut id = String::from("");
