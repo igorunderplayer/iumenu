@@ -14,3 +14,4 @@ gtk = { version = "0.9.4", package = "gtk4", features = ["v4_16"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55.0"
+lnk = { git = "https://github.com/lilopkins/lnk-rs.git" }

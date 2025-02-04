@@ -1,8 +1,84 @@
-use std::{collections::HashMap, ffi::OsStr, fs, path::Path};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 use crate::AppEntry;
+
+pub fn get_available_apps() -> HashMap<String, AppEntry> {
+    let mut apps: HashMap<String, AppEntry> = HashMap::new();
+
+    // apps.extend(get_installed_apps().into_iter());  // Not working properly, this is returning some wrong EXE files
+    apps.extend(get_startup_apps().into_iter());
+
+    apps
+}
+
+pub fn get_startup_apps() -> HashMap<String, AppEntry> {
+    let mut apps: HashMap<String, AppEntry> = HashMap::new();
+    let startup_app_paths = [
+        "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs",
+        &format!(
+            "{}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs",
+            dirs::home_dir().unwrap_or_default().to_string_lossy()
+        ),
+    ];
+
+    for path in &startup_app_paths {
+        let dir = Path::new(path);
+        read_lnk_files(dir).iter().for_each(|p| {
+            apps.insert(p.id.clone(), p.clone());
+        });
+    }
+
+    apps
+}
+
+fn read_lnk_files(dir: &Path) -> Vec<AppEntry> {
+    let mut apps: Vec<AppEntry> = vec![];
+    if dir.exists() && dir.is_dir() {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    apps.extend(read_lnk_files(&path));
+                } else {
+                    if path.extension().map(|e| e == "lnk").unwrap_or(false) {
+                        if let Some(app_name) = path.file_stem() {
+                            let id = app_name.to_string_lossy().into_owned();
+                            let result = lnk::ShellLink::open(path);
+
+                            if let Ok(app_data) = result {
+                                if let Some(info) = app_data.link_info().as_ref() {
+                                    let location = info.local_base_path();
+                                    let icon = app_data.icon_location();
+                                    let keywords = app_data.name();
+                                    if let Some(exec) = location {
+                                        let app = AppEntry::new(
+                                            id.clone(),
+                                            id,
+                                            exec.clone(),
+                                            icon.clone(),
+                                            keywords.clone(),
+                                        );
+
+                                        apps.push(app);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    apps
+}
 
 pub fn get_installed_apps() -> HashMap<String, AppEntry> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);

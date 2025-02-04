@@ -62,7 +62,7 @@ impl AppEntry {
 fn get_apps() -> HashMap<String, AppEntry> {
     #[cfg(target_os = "windows")]
     {
-        windows::get_installed_apps()
+        windows::get_available_apps()
     }
 
     #[cfg(not(target_os = "windows"))]
