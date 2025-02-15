@@ -67,11 +67,11 @@ fn get_apps() -> HashMap<String, AppEntry> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        let apps = HashMap::new();
+        let mut apps = HashMap::new();
         freedesktop::desktop_entry::get_available_apps()
             .iter()
             .for_each(|entry| {
-                apps.insert(entry.0, AppEntry::from_freedesktop(entry.1));
+                apps.insert(entry.0.clone(), AppEntry::from_freedesktop(entry.1));
             });
         apps
     }
